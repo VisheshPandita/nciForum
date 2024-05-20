@@ -1,0 +1,21 @@
+version: 0.2
+env:
+  secrets-manager:
+    TOKEN: prod/sonar:sonarToken
+    HOST: prod/sonar:Host
+    Organization: prod/sonar:Organization
+    Project: prod/sonar:nciForum
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+  build:
+    commands:
+      - echo Packaging the application
+      - mvn clean verify sonar:sonar -Dsonar.login=$TOKEN -Dsonar.host.url=$HOST -Dsonar.projectKey=$Project -Dsonar.organization=$Organization
+      - curl -u $TOKEN https://sonarcloud.io/api/qualitygates/project_status?projectKey=$Project > result.json
+      - cat result.json
+      - if [ "$(jq -r '.projectStatus.status' result.json)" = "ERROR" ]; then $CODEBUILD_BUILD_SUCCEEDING -eq 0; fi
+  post_build:
+    commands:
+      - echo Sonar scan completed
